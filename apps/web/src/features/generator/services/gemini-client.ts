@@ -3,6 +3,7 @@ import type {
   GenerateResponse,
   RegenerateSection,
 } from "@/features/generator/types";
+import { LlmUpstreamError } from "@/features/generator/services/errors";
 import { buildPromptOnly } from "@/features/generator/services/prompt-builder";
 
 interface GeminiPart {
@@ -41,7 +42,7 @@ const DEFAULT_THINKING_BUDGET = 0;
 
 const RETRYABLE_STATUS = new Set([408, 429, 500, 502, 503, 504]);
 
-class GeminiRequestError extends Error {
+class GeminiRequestError extends LlmUpstreamError {
   status?: number;
   retryable: boolean;
 
@@ -293,7 +294,9 @@ function extractCandidateText(payload: GeminiApiResponse): string {
     .trim();
 
   if (!text) {
-    throw new Error("Gemini returned empty candidate text.");
+    throw new GeminiRequestError("Gemini returned empty candidate text.", {
+      retryable: false,
+    });
   }
 
   const unfenced = text
