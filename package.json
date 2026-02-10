@@ -6,23 +6,30 @@
     "node": ">=20.19"
   },
   "workspaces": [
-    "apps/web"
+    "apps/web",
+    "apps/api"
   ],
   "scripts": {
-    "dev": "pnpm --filter @english/web dev",
-    "build": "pnpm --filter @english/web build",
+    "dev": "pnpm -r --parallel --filter @english/web --filter @english/api dev",
+    "dev:web": "pnpm --filter @english/web dev",
+    "dev:api": "pnpm --filter @english/api dev",
+    "build": "pnpm --filter @english/web build && pnpm --filter @english/api build",
     "start": "pnpm --filter @english/web start",
-    "lint": "pnpm --filter @english/web lint",
-    "lint:fix": "pnpm --filter @english/web lint:fix",
-    "format": "pnpm --filter @english/web format",
-    "format:check": "pnpm --filter @english/web format:check",
-    "type-check": "pnpm --filter @english/web type-check",
-    "test": "pnpm --filter @english/web test",
+    "lint": "pnpm --filter @english/web lint && pnpm --filter @english/api lint",
+    "lint:fix": "pnpm --filter @english/web lint:fix && pnpm --filter @english/api lint:fix",
+    "format": "pnpm --filter @english/web format && pnpm --filter @english/api format",
+    "format:check": "pnpm --filter @english/web format:check && pnpm --filter @english/api format:check",
+    "type-check": "pnpm --filter @english/web type-check && pnpm --filter @english/api type-check",
+    "test": "pnpm --filter @english/web test && pnpm --filter @english/api test",
     "prepare": "husky"
   },
   "lint-staged": {
     "apps/web/**/*.{ts,tsx,js,jsx}": [
       "pnpm --filter @english/web lint:fix --",
+      "prettier --write"
+    ],
+    "apps/api/**/*.{ts,tsx,js,jsx}": [
+      "pnpm --filter @english/api lint:fix --",
       "prettier --write"
     ],
     "*.{json,md,yml,yaml}": [
