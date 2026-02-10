@@ -6,6 +6,7 @@ import {
 } from "@/features/generator/rules/check";
 import { generateApiRequestSchema } from "@/features/generator/schemas";
 import { getLlmClient } from "@/features/generator/services/llm-client";
+import { buildUnhandledApiErrorResponse } from "@/app/api/shared/error-response";
 import type {
   GenerateApiResponse,
   GenerateInput,
@@ -161,28 +162,6 @@ export async function POST(request: Request) {
       { status: 200 }
     );
   } catch (error) {
-    const reason =
-      error instanceof Error
-        ? error.message
-        : "알 수 없는 서버 오류가 발생했습니다.";
-    const isUpstream = /gemini/i.test(reason);
-
-    return NextResponse.json<GenerateApiResponse>(
-      {
-        ok: false,
-        violations: [
-          {
-            code: isUpstream ? "LLM_UPSTREAM_ERROR" : "SERVER_ERROR",
-            message: isUpstream
-              ? `LLM 호출 실패: ${reason}`
-              : "서버 오류가 발생했습니다.",
-            severity: "error",
-          },
-        ],
-        autoRegenerated: false,
-        message: isUpstream ? reason : "Server error",
-      },
-      { status: isUpstream ? 502 : 500 }
-    );
+    return buildUnhandledApiErrorResponse(error);
   }
 }
