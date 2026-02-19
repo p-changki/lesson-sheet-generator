@@ -34,7 +34,13 @@ export function SectionCard({
           ) : null}
         </div>
         {onCopy ? (
-          <Button type="button" variant="secondary" size="sm" onClick={onCopy}>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={onCopy}
+            aria-label={`${title} 복사하기`}
+          >
             Copy
           </Button>
         ) : null}

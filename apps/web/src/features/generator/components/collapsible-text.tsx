@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
@@ -12,6 +12,7 @@ interface CollapsibleTextProps {
 export function CollapsibleText({ text, limit = 220 }: CollapsibleTextProps) {
   const [expanded, setExpanded] = useState(false);
   const shouldCollapse = text.length > limit;
+  const contentId = useId();
 
   const displayText = useMemo(() => {
     if (expanded || !shouldCollapse) return text;
@@ -20,7 +21,10 @@ export function CollapsibleText({ text, limit = 220 }: CollapsibleTextProps) {
 
   return (
     <div className="space-y-2">
-      <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
+      <p
+        id={contentId}
+        className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700"
+      >
         {displayText}
       </p>
       {shouldCollapse ? (
@@ -30,6 +34,8 @@ export function CollapsibleText({ text, limit = 220 }: CollapsibleTextProps) {
           size="sm"
           onClick={() => setExpanded((value) => !value)}
           className="h-7 px-2"
+          aria-expanded={expanded}
+          aria-controls={contentId}
         >
           {expanded ? "접기" : "펼치기"}
         </Button>

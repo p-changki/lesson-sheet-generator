@@ -52,6 +52,10 @@ export default function CreatePage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [promptPreview, setPromptPreview] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [statusMessage, setStatusMessage] = useState<{
+    type: "success" | "error" | "info";
+    text: string;
+  } | null>(null);
 
   const allTemplates = useMemo(() => {
     return mergeTemplates(loadCustomTemplates());
@@ -95,17 +99,52 @@ export default function CreatePage() {
     setInput(defaultInput);
     setPromptPreview("");
     setErrorMessage("");
+    setStatusMessage({ type: "info", text: "입력 폼이 초기화되었습니다." });
+    setTimeout(() => setStatusMessage(null), 3000);
+  };
+
+  const validateInput = (): boolean => {
+    if (!input.passage.trim()) {
+      setStatusMessage({
+        type: "error",
+        text: "지문(Passage)을 입력해주세요.",
+      });
+      return false;
+    }
+
+    if (input.questionType !== "passage_explain") {
+      const hasChoice = input.choices.some((c) => c.trim().length > 0);
+      if (!hasChoice) {
+        setStatusMessage({
+          type: "error",
+          text: "선지(Choices)를 최소 1개 이상 입력해주세요.",
+        });
+        return false;
+      }
+    }
+    return true;
   };
 
   const handleGeneratePromptOnly = async () => {
+    if (!validateInput()) return;
+
     const prompt = buildPromptOnly(input);
     setPromptPreview(prompt);
-    await copyToClipboard(prompt);
+    const copied = await copyToClipboard(prompt);
+    setStatusMessage(
+      copied
+        ? { type: "success", text: "프롬프트가 복사되었습니다." }
+        : { type: "error", text: "클립보드 복사에 실패했습니다." }
+    );
+    setTimeout(() => setStatusMessage(null), 3000);
   };
 
   const handleGenerate = async () => {
+    if (!validateInput()) return;
+
     setIsGenerating(true);
     setErrorMessage("");
+    setStatusMessage(null);
 
     try {
       const response = await fetch("/api/generate", {
@@ -118,7 +157,9 @@ export default function CreatePage() {
 
       const payload = (await response.json()) as GenerateApiResponse;
       if (!payload.ok || !payload.data) {
-        setErrorMessage(payload.message ?? "생성에 실패했습니다.");
+        const msg = payload.message ?? "생성에 실패했습니다.";
+        setErrorMessage(msg);
+        setStatusMessage({ type: "error", text: msg });
         return;
       }
 
@@ -133,7 +174,9 @@ export default function CreatePage() {
       saveLatestResult(bundle);
       router.push("/result");
     } catch {
-      setErrorMessage("요청 중 오류가 발생했습니다.");
+      const msg = "요청 중 오류가 발생했습니다.";
+      setErrorMessage(msg);
+      setStatusMessage({ type: "error", text: msg });
     } finally {
       setIsGenerating(false);
     }
@@ -141,26 +184,49 @@ export default function CreatePage() {
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 px-4 py-8 sm:px-6 lg:px-8">
-      <header className="space-y-3">
-        <Badge variant="secondary">MVP / Create</Badge>
-        <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
-          수업용 해설지 자동 생성기
-        </h1>
-        <p className="text-sm text-slate-600">
-          지문/문항 입력 → 생성 → 결과 카드 복사/내보내기 흐름으로 바로 사용
-          가능합니다.
-        </p>
+      {/* Status Message Toast Area */}
+      <div
+        aria-live="polite"
+        className="fixed left-1/2 top-4 z-50 -translate-x-1/2 space-y-2"
+      >
+        {statusMessage ? (
+          <div
+            className={`rounded-lg border px-4 py-2 text-sm font-medium shadow-lg transition-all ${
+              statusMessage.type === "error"
+                ? "border-rose-200 bg-rose-50 text-rose-700"
+                : statusMessage.type === "success"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border-slate-200 bg-white text-slate-700"
+            }`}
+          >
+            {statusMessage.text}
+          </div>
+        ) : null}
+      </div>
+
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary">MVP / Create</Badge>
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+            수업용 해설지 생성
+          </h1>
+          <p className="text-sm text-slate-600">
+            지문과 문항을 입력하여 AI 분석 해설지를 생성합니다.
+          </p>
+        </div>
         <div className="flex gap-2">
           <Button asChild variant="outline" size="sm">
-            <Link href="/templates">템플릿 열기</Link>
+            <Link href="/templates">템플릿 불러오기</Link>
           </Button>
           <Button asChild variant="outline" size="sm">
-            <Link href="/result">최근 결과 보기</Link>
+            <Link href="/result">최근 결과</Link>
           </Button>
         </div>
       </header>
 
-      <Card>
+      <Card className="border-slate-200 shadow-sm">
         <CardHeader>
           <CardTitle>입력 폼</CardTitle>
         </CardHeader>
@@ -305,28 +371,42 @@ export default function CreatePage() {
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:items-center sm:justify-between">
             <Button
               type="button"
               onClick={handleGenerate}
               disabled={isGenerating}
+              size="lg"
+              className="w-full font-semibold sm:w-auto"
             >
-              {isGenerating ? "Generating..." : "Generate"}
+              {isGenerating ? "생성 중..." : "해설지 생성하기 (Generate)"}
             </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={handleGeneratePromptOnly}
-            >
-              Generate Prompt Only
-            </Button>
-            <Button type="button" variant="outline" onClick={resetForm}>
-              Reset
-            </Button>
+
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleGeneratePromptOnly}
+                className="flex-1 sm:flex-none"
+              >
+                프롬프트만 복사
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={resetForm}
+                className="text-slate-500 hover:text-rose-600"
+              >
+                초기화
+              </Button>
+            </div>
           </div>
 
           {errorMessage ? (
-            <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+            <p
+              role="alert"
+              className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700"
+            >
               {errorMessage}
             </p>
           ) : null}
