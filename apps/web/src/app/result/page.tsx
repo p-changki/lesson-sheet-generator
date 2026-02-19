@@ -6,7 +6,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { CollapsibleText } from "@/features/generator/components/collapsible-text";
 import { SectionCard } from "@/features/generator/components/section-card";
 import {
@@ -28,7 +27,10 @@ import type {
 export default function ResultPage() {
   const [bundle, setBundle] = useState<SessionRunBundle | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
-  const [message, setMessage] = useState("");
+  const [feedback, setFeedback] = useState<{
+    type: "success" | "error" | "info";
+    text: string;
+  } | null>(null);
 
   useEffect(() => {
     setBundle(loadLatestResult());
@@ -41,11 +43,21 @@ export default function ResultPage() {
     );
   }, [bundle]);
 
+  const handleCopy = async (text: string, label: string) => {
+    const copied = await copyToClipboard(text);
+    setFeedback(
+      copied
+        ? { type: "success", text: `${label} 복사되었습니다.` }
+        : { type: "error", text: "클립보드 복사에 실패했습니다." }
+    );
+    setTimeout(() => setFeedback(null), 3000);
+  };
+
   const regenerate = async (section: RegenerateSection) => {
     if (!bundle) return;
 
     setIsRegenerating(true);
-    setMessage("");
+    setFeedback(null);
 
     try {
       const response = await fetch("/api/regenerate", {
@@ -62,7 +74,10 @@ export default function ResultPage() {
 
       const payload = (await response.json()) as GenerateApiResponse;
       if (!payload.ok || !payload.data) {
-        setMessage(payload.message ?? "재생성에 실패했습니다.");
+        setFeedback({
+          type: "error",
+          text: payload.message ?? "재생성에 실패했습니다.",
+        });
         return;
       }
 
@@ -77,7 +92,7 @@ export default function ResultPage() {
       setBundle(next);
       saveLatestResult(next);
     } catch {
-      setMessage("재생성 중 오류가 발생했습니다.");
+      setFeedback({ type: "error", text: "재생성 중 오류가 발생했습니다." });
     } finally {
       setIsRegenerating(false);
     }
@@ -108,93 +123,118 @@ export default function ResultPage() {
         </h1>
       </header>
 
-      <div className="sticky top-3 z-20 rounded-xl border border-slate-200 bg-white/95 p-3 shadow-sm backdrop-blur">
+      <div className="sticky top-3 z-20 flex flex-col gap-3 rounded-xl border border-slate-200 bg-white/95 p-4 shadow-sm backdrop-blur sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap gap-2">
           <Button
-            onClick={() => copyToClipboard(getAllSectionsText(bundle.data))}
+            onClick={() =>
+              handleCopy(getAllSectionsText(bundle.data), "전체 내용이")
+            }
+            className="font-semibold"
           >
-            Copy All
+            전체 복사
+          </Button>
+          <div className="h-9 w-px bg-slate-200 mx-1 hidden sm:block" />
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() =>
+              handleCopy(
+                getSectionText(bundle.data, "reading"),
+                "Reading 파트가"
+              )
+            }
+          >
+            Reading
           </Button>
           <Button
             variant="secondary"
+            size="sm"
             onClick={() =>
-              copyToClipboard(getSectionText(bundle.data, "reading"))
+              handleCopy(
+                getSectionText(bundle.data, "solution"),
+                "Solution 파트가"
+              )
             }
           >
-            Copy Reading
+            Solution
           </Button>
           <Button
             variant="secondary"
+            size="sm"
             onClick={() =>
-              copyToClipboard(getSectionText(bundle.data, "solution"))
+              handleCopy(
+                getSectionText(bundle.data, "choices"),
+                "Choices 파트가"
+              )
             }
           >
-            Copy Solution
+            Choices
           </Button>
           <Button
             variant="secondary"
+            size="sm"
             onClick={() =>
-              copyToClipboard(getSectionText(bundle.data, "choices"))
+              handleCopy(getSectionText(bundle.data, "vocab"), "Vocab 파트가")
             }
           >
-            Copy Choices
+            Vocab
           </Button>
           <Button
             variant="secondary"
+            size="sm"
             onClick={() =>
-              copyToClipboard(getSectionText(bundle.data, "vocab"))
+              handleCopy(getSectionText(bundle.data, "one_liner"), "한줄요약이")
             }
           >
-            Copy Vocab
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() =>
-              copyToClipboard(getSectionText(bundle.data, "one_liner"))
-            }
-          >
-            Copy One-liner
-          </Button>
-          <Button variant="outline" onClick={() => exportAsJson(bundle.data)}>
-            Export JSON
+            One-liner
           </Button>
         </div>
 
-        <Separator className="my-3" />
-
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2 sm:justify-end">
           <Button
             variant="outline"
+            size="sm"
+            onClick={() => exportAsJson(bundle.data)}
+          >
+            JSON 내보내기
+          </Button>
+          <div className="h-9 w-px bg-slate-200 mx-1 hidden sm:block" />
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => regenerate("all")}
             disabled={isRegenerating}
+            className="text-slate-600 hover:text-indigo-600"
           >
-            Regenerate 전체
+            전체 재생성
           </Button>
           <Button
-            variant="outline"
-            onClick={() => regenerate("vocab")}
-            disabled={isRegenerating}
+            asChild
+            variant="default"
+            size="sm"
+            className="bg-slate-900 text-white hover:bg-slate-800"
           >
-            Regenerate 어휘
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => regenerate("choices")}
-            disabled={isRegenerating}
-          >
-            Regenerate 선지 분석
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => regenerate("reading")}
-            disabled={isRegenerating}
-          >
-            Regenerate 끊어읽기
-          </Button>
-          <Button asChild variant="ghost">
-            <Link href="/create">새로 생성</Link>
+            <Link href="/create">새로 만들기</Link>
           </Button>
         </div>
+      </div>
+
+      {/* Feedback Message Area */}
+      <div
+        aria-live="polite"
+        className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2"
+      >
+        {feedback ? (
+          <div
+            className={`rounded-full px-4 py-2 text-sm font-medium shadow-lg backdrop-blur ${
+              feedback.type === "error"
+                ? "bg-rose-600 text-white"
+                : "bg-slate-900/90 text-white"
+            }`}
+          >
+            {feedback.text}
+          </div>
+        ) : null}
       </div>
 
       {bundle.autoRegenerated ? (
@@ -218,16 +258,18 @@ export default function ResultPage() {
         </Card>
       ) : null}
 
-      {message ? (
+      {feedback?.type === "error" ? (
         <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-          {message}
+          {feedback.text}
         </p>
       ) : null}
 
       <SectionCard
         title="Reading"
         description="문장별 끊어읽기 + 해석 + 논리 포인트"
-        onCopy={() => copyToClipboard(getSectionText(bundle.data, "reading"))}
+        onCopy={() =>
+          handleCopy(getSectionText(bundle.data, "reading"), "Reading 파트가")
+        }
       >
         <div className="space-y-4">
           {bundle.data.reading_blocks.map((block) => (
@@ -252,7 +294,9 @@ export default function ResultPage() {
       <SectionCard
         title="Solution"
         description="정답 + 근거 요약"
-        onCopy={() => copyToClipboard(getSectionText(bundle.data, "solution"))}
+        onCopy={() =>
+          handleCopy(getSectionText(bundle.data, "solution"), "Solution 파트가")
+        }
       >
         <p className="text-sm font-semibold text-slate-800">
           {bundle.data.solution_logic.final}
@@ -263,7 +307,9 @@ export default function ResultPage() {
       <SectionCard
         title="Choices"
         description="①~⑤ O/X/N/A 판정 + 이유"
-        onCopy={() => copyToClipboard(getSectionText(bundle.data, "choices"))}
+        onCopy={() =>
+          handleCopy(getSectionText(bundle.data, "choices"), "Choices 파트가")
+        }
       >
         <div className="space-y-3">
           {bundle.data.choice_analysis.length ? (
@@ -288,7 +334,9 @@ export default function ResultPage() {
       <SectionCard
         title="Vocab"
         description="핵심 어휘 5개 + 유의어 3개"
-        onCopy={() => copyToClipboard(getSectionText(bundle.data, "vocab"))}
+        onCopy={() =>
+          handleCopy(getSectionText(bundle.data, "vocab"), "Vocab 파트가")
+        }
       >
         <div className="grid gap-3 md:grid-cols-2">
           {bundle.data.vocab.map((item) => (
@@ -313,7 +361,9 @@ export default function ResultPage() {
       <SectionCard
         title="One-liner"
         description="수업용 한 줄 요약"
-        onCopy={() => copyToClipboard(getSectionText(bundle.data, "one_liner"))}
+        onCopy={() =>
+          handleCopy(getSectionText(bundle.data, "one_liner"), "한줄요약이")
+        }
       >
         <CollapsibleText text={bundle.data.one_liner} />
       </SectionCard>

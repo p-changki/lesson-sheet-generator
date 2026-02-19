@@ -40,6 +40,10 @@ export default function TemplatesPage() {
   const [questionType, setQuestionType] = useState<QuestionType>("blank");
   const [density, setDensity] = useState<Density>("base");
   const [includeChoiceAnalysis, setIncludeChoiceAnalysis] = useState(true);
+  const [feedback, setFeedback] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
 
   const templates = useMemo(
     () => mergeTemplates(customTemplates),
@@ -47,7 +51,11 @@ export default function TemplatesPage() {
   );
 
   const addCustomTemplate = () => {
-    if (!name.trim()) return;
+    if (!name.trim()) {
+      setFeedback({ type: "error", text: "템플릿 이름을 입력해주세요." });
+      setTimeout(() => setFeedback(null), 3000);
+      return;
+    }
 
     const nextTemplate: TemplatePreset = {
       id: `custom-${Date.now()}`,
@@ -62,6 +70,8 @@ export default function TemplatesPage() {
     setCustomTemplates(nextTemplates);
     saveCustomTemplates(nextTemplates);
     setName("");
+    setFeedback({ type: "success", text: "템플릿이 저장되었습니다." });
+    setTimeout(() => setFeedback(null), 3000);
   };
 
   return (
@@ -139,37 +149,73 @@ export default function TemplatesPage() {
             />
           </div>
 
-          <div className="md:col-span-2">
+          <div className="md:col-span-2 flex items-center gap-3">
             <Button type="button" onClick={addCustomTemplate}>
               LocalStorage에 저장
             </Button>
+            {feedback ? (
+              <span
+                className={`text-sm font-medium ${
+                  feedback.type === "error"
+                    ? "text-rose-600"
+                    : "text-emerald-600"
+                }`}
+                role="status"
+                aria-live="polite"
+              >
+                {feedback.text}
+              </span>
+            ) : null}
           </div>
         </CardContent>
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
         {templates.map((template) => (
-          <Card key={template.id}>
+          <Card key={template.id} className="flex flex-col justify-between">
             <CardHeader className="space-y-2">
-              <CardTitle className="text-base">{template.name}</CardTitle>
-              <p className="text-sm text-slate-500">{template.description}</p>
+              <div className="flex items-start justify-between gap-2">
+                <CardTitle className="text-lg font-bold text-slate-900">
+                  {template.name}
+                </CardTitle>
+                {template.id.startsWith("custom-") ? (
+                  <Badge variant="secondary" className="shrink-0">
+                    Custom
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="shrink-0">
+                    Preset
+                  </Badge>
+                )}
+              </div>
+              <p className="text-sm text-slate-500 line-clamp-2">
+                {template.description}
+              </p>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-4">
               <div className="flex flex-wrap gap-2">
-                <Badge variant="outline">
+                <Badge
+                  variant="secondary"
+                  className="bg-slate-100 text-slate-700 hover:bg-slate-200"
+                >
                   {questionTypeLabels[template.defaultQuestionType]}
                 </Badge>
-                <Badge variant="outline">
-                  density: {template.defaultDensity}
+                <Badge
+                  variant="secondary"
+                  className="bg-slate-100 text-slate-700 hover:bg-slate-200"
+                >
+                  밀도: {template.defaultDensity}
                 </Badge>
-                <Badge variant="outline">
-                  choice-analysis:{" "}
-                  {template.includeChoiceAnalysis ? "on" : "off"}
+                <Badge
+                  variant="secondary"
+                  className="bg-slate-100 text-slate-700 hover:bg-slate-200"
+                >
+                  선지분석: {template.includeChoiceAnalysis ? "ON" : "OFF"}
                 </Badge>
               </div>
-              <Button asChild>
+              <Button asChild className="w-full" variant="outline">
                 <Link href={`/create?templateId=${template.id}`}>
-                  이 템플릿으로 시작
+                  이 템플릿으로 시작하기
                 </Link>
               </Button>
             </CardContent>
